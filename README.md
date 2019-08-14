@@ -4,6 +4,7 @@ explore the imbalance data classification, categorical variable encoding and app
 ## Requirement
   * python 3.4+
   * pytorch 1.2
+  * scikit-learn
   * Imbalance-Xgboost(https://github.com/jhwjhw0123/Imbalance-XGBoost)
   * numpy
   * pandas
