@@ -96,24 +96,17 @@ print("Prob(negative on the condition negative) = %.4f"%(confusion[1,1]/(confusi
 
 import torch.nn as nn
 import torch
+import torch.optim as optim
 class fusion_nn(nn.Module):
     def __init__(self):
         super.__init__()
         torch_seed = torch.random.initial_seed()
-        self.w11 = 0.2
-        self.w12 = -0.5
-
-        self.w21 = 0.785
-        self.w22 = -0.32434
-
-        self.ww11 = -0.2345235
-        self.ww12 = 0.6453
+        self.linear = nn.Linear(2, 5)
+        self.softmax = nn.Softmax()
 
     def forward(self, xx):
-        f1 = torch.nn.functional.elu(xx[0]*self.w11 + xx[1]*self.w12)
-        f2 = torch.nn.functional.elu(xx[0]*self.w21 + xx[1]*self.w22)
-
-        out = torch.nn.functional.softmax(f1*self.ww11 + f2*self.ww12)
+        f1 = self.linear(xx)
+        out = self.softmax(f1)
         return out
 
 xx = np.vstack((proba_preds[:,1], proba_output))
@@ -122,3 +115,9 @@ net = fusion_nn()
 print(net)
 params = list(net.parameters())
 criterion = nn.functional.binary_cross_entropy()
+optimizer = optim.SGD(net.parameters(), lr=0.01)
+optimizer.zero_grad()   # zero the gradient buffers
+
+#loss = criterion(output, target)
+#loss.backward()
+#optimizer.step()
