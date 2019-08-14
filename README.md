@@ -12,5 +12,5 @@ explore the imbalance data classification, categorical variable encoding and app
   * categorical-encoding
 
 ## TODO
-  * ndeep learning for fusion of the outputs from several classifiers
+  * deep learning for fusion of the outputs from several classifiers
   * compare the performace of categorcal encoding methods from https://github.com/scikit-learn-contrib/categorical-encoding
