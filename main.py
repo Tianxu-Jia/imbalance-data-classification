@@ -7,6 +7,10 @@ from imxgboost.imbalance_xgb import imbalance_xgboost as imb_xgb
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import confusion_matrix
 
+import torch.nn as nn
+import torch
+import torch.optim as optim
+
 
 def freq_encode(pd_data, columns=False):
     '''Returns a DataFrame with encoded columns'''
@@ -94,13 +98,30 @@ confusion = confusion_matrix(y_train, preds)
 print("Prob(positive on the condition positive) = %.4f"%(confusion[0,0]/(confusion[0,0]+confusion[0,1])))
 print("Prob(negative on the condition negative) = %.4f"%(confusion[1,1]/(confusion[1,1]+confusion[1,0])))
 
-import torch.nn as nn
-import torch
-import torch.optim as optim
+xx = np.transpose(np.vstack((proba_preds[:,1], proba_output)))
+
+class dataset(torch.utils.data.Dataset):
+    def __init__(self, xx, yy):
+        self.len = len(yy)
+        self.xx = torch.from_numpy(xx)
+        self.yy = torch.from_numpy(yy)
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, idx):
+        return self.xx[idx], self.yy[idx]
+
+feature_dataset = dataset(xx, y_train)
+fleature_dataloader = torch.utils.data.DataLoader(dataset=feature_dataset,
+                                                  batch_size=8,
+                                                  shuffle=True)
+
+from torch.autograd import Variable
+
 class fusion_nn(nn.Module):
     def __init__(self):
-        super.__init__()
-        torch_seed = torch.random.initial_seed()
+        super(fusion_nn, self).__init__()
         self.linear = nn.Linear(2, 5)
         self.softmax = nn.Softmax()
 
@@ -109,15 +130,27 @@ class fusion_nn(nn.Module):
         out = self.softmax(f1)
         return out
 
-xx = np.vstack((proba_preds[:,1], proba_output))
 
-net = fusion_nn()
-print(net)
-params = list(net.parameters())
+model = fusion_nn()
 criterion = nn.functional.binary_cross_entropy()
-optimizer = optim.SGD(net.parameters(), lr=0.01)
-optimizer.zero_grad()   # zero the gradient buffers
+optimizer = optim.SGD(model.parameters(), lr=0.01)
 
-#loss = criterion(output, target)
-#loss.backward()
-#optimizer.step()
+for epoch in range(2):
+    for i, data in enumerate(fleature_dataloader, 0):
+        # get the inputs
+        inputs, labels = data
+
+        # wrap them in Variable
+        inputs, labels = Variable(inputs), Variable(labels)
+        y_pred = model(inputs)
+        loss = criterion(y_pred, labels)
+
+        print('epoch: ', epoch, '  i: ', i, '  loss: ', loss.data[0])
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+
+
+
