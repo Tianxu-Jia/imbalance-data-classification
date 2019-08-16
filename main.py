@@ -114,7 +114,7 @@ class dataset(torch.utils.data.Dataset):
 
 feature_dataset = dataset(xx, y_train)
 fleature_dataloader = torch.utils.data.DataLoader(dataset=feature_dataset,
-                                                  batch_size=8,
+                                                  batch_size=64,
                                                   shuffle=True)
 
 from torch.autograd import Variable
@@ -122,20 +122,24 @@ from torch.autograd import Variable
 class fusion_nn(nn.Module):
     def __init__(self):
         super(fusion_nn, self).__init__()
-        self.linear = nn.Linear(2, 5)
+        self.linear1 = nn.Linear(2, 50)
+        self.linear2 = nn.Linear(50, 1)
         self.softmax = nn.Softmax()
 
     def forward(self, xx):
-        f1 = self.linear(xx)
-        out = self.softmax(f1)
+        f = self.softmax(self.linear1(xx))
+        out = self.softmax(self.linear2(f))
         return out
 
 
 model = fusion_nn()
-criterion = nn.functional.binary_cross_entropy()
-optimizer = optim.SGD(model.parameters(), lr=0.01)
+criterion = nn.BCELoss()
+#optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+optimizer = optim.Adam(model.parameters(), lr=0.0001)
+print_loss_step = 100
+total_loss = 0
 
-for epoch in range(2):
+for epoch in range(500):
     for i, data in enumerate(fleature_dataloader, 0):
         # get the inputs
         inputs, labels = data
@@ -143,9 +147,13 @@ for epoch in range(2):
         # wrap them in Variable
         inputs, labels = Variable(inputs), Variable(labels)
         y_pred = model(inputs)
-        loss = criterion(y_pred, labels)
+        loss = criterion(y_pred, labels.to(torch.float32))
 
-        print('epoch: ', epoch, '  i: ', i, '  loss: ', loss.data[0])
+        if i%print_loss_step == 0:
+            print('epoch: ', epoch, '  i: ', i, '  loss: ', total_loss/print_loss_step)
+            total_loss = 0
+        else:
+            total_loss += loss.data
 
         optimizer.zero_grad()
         loss.backward()
