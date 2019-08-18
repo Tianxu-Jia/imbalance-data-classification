@@ -55,9 +55,7 @@ CV_weight_booster = GridSearchCV(xgboster_weight,
 CV_weight_booster.fit(X_train, y_train)
 opt_weight_booster = CV_weight_booster.best_estimator_
 
-
 class_output = opt_weight_booster.predict_determine(X_train, y=None)
-
 imb_confusion = confusion_matrix(y_train, class_output)
 
 precision = (imb_confusion[0,0] + imb_confusion[1,1])/len(y_train)
@@ -131,15 +129,40 @@ class fusion_nn(nn.Module):
         out = self.softmax(self.linear2(f))
         return out
 
+class Net(nn.Module):
 
-model = fusion_nn()
+    def __init__(self):
+        super().__init__()
+        self.fc1 = nn.Linear(2, 50)
+        self.relu1 = nn.ReLU()
+        self.dout = nn.Dropout(0.2)
+        self.fc2 = nn.Linear(50, 100)
+        self.prelu = nn.PReLU(1)
+        self.out = nn.Linear(100, 1)
+        self.out_act = nn.Sigmoid()
+
+    def forward(self, input_):
+        a1 = self.fc1(input_)
+        h1 = self.relu1(a1)
+        dout = self.dout(h1)
+        a2 = self.fc2(dout)
+        h2 = self.prelu(a2)
+        a3 = self.out(h2)
+        y = self.out_act(a3)
+        return y
+
+import torchvision
+#from torch.utils.tensorboard import SummaryWriter
+#writer = SummaryWriter()
+
+model = Net()
 criterion = nn.BCELoss()
 #optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-optimizer = optim.Adam(model.parameters(), lr=0.0001)
-print_loss_step = 100
+optimizer = optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999))
+print_loss_step = 10
 total_loss = 0
 
-for epoch in range(500):
+for epoch in range(10):
     for i, data in enumerate(fleature_dataloader, 0):
         # get the inputs
         inputs, labels = data
@@ -160,5 +183,19 @@ for epoch in range(500):
         optimizer.step()
 
 
+##########
+# test
+##########
 
+im_test_out = opt_weight_booster.predict_sigmoid(X_test, y=None)
+test_out = preds = gbm.predict_proba(X_test)
+xx = np.transpose(np.vstack((test_out[:,1], proba_output)))
+
+xx_input = Variable(xx)
+yy_out = model(xx_input)
+
+confusion_final = confusion_matrix(y_train, yy_out)
+print(confusion_final)
+
+debug = 1
 
